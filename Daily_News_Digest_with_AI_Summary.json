@@ -1,0 +1,159 @@
+{
+  "name": "Daily News Digest with AI Summary",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 7
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -540,
+        -60
+      ],
+      "id": "af9418db-ea1b-4e2f-a398-47fc3b745e20",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyHour"
+            }
+          ]
+        },
+        "feedUrl": "http://feeds.bbci.co.uk/news/rss.xml"
+      },
+      "type": "n8n-nodes-base.rssFeedReadTrigger",
+      "typeVersion": 1,
+      "position": [
+        -340,
+        -60
+      ],
+      "id": "eb5f9f7c-0503-411c-b665-8703e3b8a1cc",
+      "name": "RSS"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.deepseek.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer DeepSeek_API_Key"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"deepseek-chat\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Summarize this in 3 bullet points: {{$node[\"RSS\"].json[\"content\"]}}\"\n    }\n  ],\n  \"temperature\": 0.7\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -160,
+        -60
+      ],
+      "id": "46f47e55-7d3a-44c1-858c-21f1a3cd5939",
+      "name": "DeepSeek"
+    },
+    {
+      "parameters": {
+        "jsCode": "const articles = items.map(item => ({\n  title: item.json.title,\n  summary: $node[\"DeepSeek\"].json.choices[0].message.content,\n  link: item.json.link\n}));\n\nreturn [{\n  json: {\n    subject: `Daily News Digest - ${new Date().toDateString()}`,\n    body: `Here's your summary:\\n\\n${articles.map(article => \n      `## ${article.title}\\n${article.summary}\\nRead more: ${article.link}\\n`\n    ).join('\\n')}`\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        40,
+        -60
+      ],
+      "id": "a243ff9a-dd8c-49eb-8680-2403f458d4e5",
+      "name": "FormatEmail"
+    },
+    {
+      "parameters": {
+        "fromEmail": "SendersEmailAddress@gmail.com",
+        "toEmail": "ReceiverEmailAddress@gmail.com",
+        "subject": "={{$node[\"FormatEmail\"].json[\"subject\"]}}",
+        "html": "={{$node[\"FormatEmail\"].json[\"body\"]}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        -80,
+        180
+      ],
+      "id": "41927459-dddf-44e9-98b3-a5d53ed879f9",
+      "name": "Send Email",
+      "webhookId": "51db6c87-5a65-4f89-b940-45410942549f",
+      "credentials": {
+        "smtp": {
+          "id": "jpqkfZzbwagZnrWt",
+          "name": "SMTP account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "RSS": {
+      "main": [
+        [
+          {
+            "node": "DeepSeek",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DeepSeek": {
+      "main": [
+        [
+          {
+            "node": "FormatEmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FormatEmail": {
+      "main": [
+        [
+          {
+            "node": "Send Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "93135192-7644-40ce-a753-66eb0b2839c1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "d1dd2af0c9a46603eb69ebd15b1632b326397eec33cff5addc7f8e77c305fdb5"
+  },
+  "id": "mB2ZTzLTjHE1VFTC",
+  "tags": []
+}
